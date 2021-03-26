@@ -1,0 +1,28 @@
+$From = "6/1/2019"
+$To = "6/14/2019"
+$Data = @()
+
+$Mailboxes = Get-Mailbox -ResultSize unlimited  | where {$_.RecipientTypeDetails -eq "UserMailbox"}
+function New-Per()
+{
+  param ($ea, $se)
+
+  $per = new-object PSObject
+
+  $per | add-member -type NoteProperty -Name EmailAddress -Value $ea
+  $per | add-member -type NoteProperty -Name Send -Value $se
+  return $per 
+
+}
+
+foreach ($Mailbox in $Mailboxes){
+    $intSent=0
+    Get-TransportService | Get-MessageTrackingLog -ResultSize Unlimited -Start $From -End $To -sender $Mailbox.UserPrincipalName | ForEach {  
+ 
+    If ($_.EventId -eq "RECEIVE" -and $_.Source -eq "STOREDRIVER" ) {
+        $intSent++             
+    }
+}
+$Data += New-Per $Mailbox.UserPrincipalName $intSent 
+}
+$Data | Sort-Object Send -Descending | Select -first 2 | FT -AutoSize
